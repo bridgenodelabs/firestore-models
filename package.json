@@ -1,0 +1,57 @@
+{
+  "name": "firestore-type",
+  "version": "0.1.0",
+  "description": "TypeScript types and utilities for Firestore, usable in both browser and Node.js environments",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./adapters/browser": {
+      "import": "./dist/adapters/browser.js",
+      "types": "./dist/adapters/browser.d.ts"
+    },
+    "./adapters/node": {
+      "import": "./dist/adapters/node.js",
+      "types": "./dist/adapters/node.d.ts"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "firestore",
+    "typescript",
+    "firebase",
+    "types"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "firebase": ">=10.0.0",
+    "firebase-admin": ">=12.0.0"
+  },
+  "peerDependenciesMeta": {
+    "firebase": {
+      "optional": true
+    },
+    "firebase-admin": {
+      "optional": true
+    }
+  }
+}
