@@ -1,0 +1,22 @@
+{
+  "name": "@firestore-type/sample-project-task",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Command-line sample demonstrating transactional writes of projects with task subcollections.",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "firebase": "^12.0.0",
+    "firestore-type": "file:../.."
+  },
+  "devDependencies": {
+    "@types/node": "^22.1.4",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noEmit": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "rootDirs": ["./src", "../../src", "../shared/src"],
+    "paths": {
+      "firestore-type": ["../../src/index.ts"],
+      "firestore-type/core": ["../../src/core/index.ts"],
+      "firestore-type/time": ["../../src/time/index.ts"],
+      "firestore-type/adapters/firebase-client": [
+        "../../src/adapters/firebase-client/index.ts"
+      ],
+      "firestore-type/adapters/firebase-admin": [
+        "../../src/adapters/firebase-admin/index.ts"
+      ]
+    }
+  },
+  "include": ["src"]
+}

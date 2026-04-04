@@ -65,6 +65,26 @@ See [samples/web-app/README.md](web-app/README.md) for:
 - Seeding legacy schemaVersion 0 documents
 - Running automated verification (`pnpm verify:live`)
 
+### Project Task Subcollection Runner
+
+A focused CLI sample that layers a `Project` model on top of the shared `Task` model and writes both a parent document and its task subcollection inside the same `runTransaction`.
+
+**Features:**
+
+- Persisting `projects/{projectId}` and every `projects/{projectId}/tasks/{taskId}` document together so any failure rolls back the entire batch
+- Rehydrating the project and nested task array from Firestore via `readDocumentDomain`, including schema/migration logic
+- Illustrating how to reuse `taskModel` for subcollection writes while keeping the project document separate
+
+**Getting started:**
+
+```bash
+cd samples/project-task-sample
+pnpm install
+pnpm dev
+```
+
+See [samples/project-task-sample/README.md](project-task-sample/README.md) for environment variables, emulator setup, and verification tips.
+
 ### Firebase Function (Cloud Function Adapter)
 
 Sample Cloud Function implementation using `firestore-type/adapters/firebase-admin` for server-side migrations and mutations.
