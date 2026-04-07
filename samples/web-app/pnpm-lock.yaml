@@ -13,7 +13,7 @@ importers:
         version: 12.10.0
       firestore-type:
         specifier: file:../..
-        version: file:../..(firebase@12.10.0)
+        version: file:../..(firebase@12.10.0)(react@19.2.4)
       react:
         specifier: ^19.1.1
         version: 19.2.4
@@ -789,10 +789,13 @@ packages:
     peerDependencies:
       firebase: '>=10.0.0'
       firebase-admin: '>=12.0.0'
+      react: '>=18.0.0'
     peerDependenciesMeta:
       firebase:
         optional: true
       firebase-admin:
+        optional: true
+      react:
         optional: true
 
   fsevents@2.3.3:
@@ -1814,9 +1817,10 @@ snapshots:
     transitivePeerDependencies:
       - '@react-native-async-storage/async-storage'
 
-  firestore-type@file:../..(firebase@12.10.0):
+  firestore-type@file:../..(firebase@12.10.0)(react@19.2.4):
     optionalDependencies:
       firebase: 12.10.0
+      react: 19.2.4
 
   fsevents@2.3.3:
     optional: true

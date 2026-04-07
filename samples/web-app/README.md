@@ -2,14 +2,14 @@
 
 Runnable React + Vite sample that demonstrates `firestore-type` migration-on-read and domain/persisted separation with the Firebase Web SDK.
 
-The UI only works with `Task` domain objects from the shared sample model. Firestore document details are isolated in the adapter layer.
+The UI only works with `Task` domain objects from the shared sample model. Firestore read/write wiring is handled through the optional `firestore-type/react` hooks subpath.
 
 ## What this demonstrates
 
 - Create task writes with `schemaVersion: 1` persisted shape
-- Live list reads using `readDocumentDomain` from `firestore-type/adapters/firebase-client`
+- Live list reads using `useFirestoreCollectionDomain` from `firestore-type/react`
 - Legacy `schemaVersion: 0` docs transparently migrate to current `Task` domain objects
-- Toggle done and delete via adapter helpers
+- Toggle done and delete via `useFirestoreMutations`
 - Emulator-first development flow for safe local testing
 
 ## Prerequisites
@@ -111,7 +111,7 @@ When the app loads, the task appears using the current domain fields (`done`, `d
 
 1. Create a task and inspect Firestore data: it should store `schemaVersion: 1` plus `done`, `dueAt`, and `priority`.
 2. Add a `schemaVersion: 0` document and refresh: it should render like a normal task.
-3. Toggle done state: the document updates via adapter helper.
+3. Toggle done state: the document updates through the shared mutation hook.
 4. Delete a task: the document is removed and list updates immediately.
 
 ## Scripted live verification
@@ -125,7 +125,6 @@ The script reads `samples/web-app/.env.local` when present, but also falls back 
 - `.env.local.sample` env template committed to the repo
 - `src/lib/firestore.ts` Firebase app setup + emulator connection
 - `src/models/task.ts` shared model re-export (no duplicated migration logic)
-- `src/lib/taskAdapter.ts` Firestore/domain boundary
-- `src/hooks/useTaskList.ts` live collection subscription + CRUD actions
+- `src/hooks/useTaskList.ts` composition layer that uses `firestore-type/react` hooks
 - `src/components/TaskForm.tsx` create flow
 - `src/components/TaskList.tsx` list/toggle/delete flows

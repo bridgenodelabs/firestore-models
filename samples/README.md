@@ -47,7 +47,7 @@ A complete, runnable React application demonstrating Firestore integration using
 - Live task list with Firestore subscriptions
 - Create, read (with live updates), toggle done, and delete tasks
 - Migration-on-read: transparent upgrade of `schemaVersion: 0` documents to current domain shape
-- Domain/persisted boundary isolation via adapter layer
+- Domain/persisted boundary isolation via `firestore-type/react` hooks
 - Emulator-first development flow
 
 **Getting started:**
@@ -138,8 +138,8 @@ samples/
 │   └── package.json
 ├── web-app/                         # React + Vite sample (runnable)
 │   ├── src/
-│   │   ├── lib/                     # Firestore init, adapter boundary
-│   │   ├── hooks/                   # React subscription hook
+│   │   ├── lib/                     # Firestore init and SDK configuration
+│   │   ├── hooks/                   # Composition over firestore-type/react hooks
 │   │   ├── components/              # UI components
 │   │   └── styles/                  # CSS design system
 │   ├── scripts/
@@ -173,14 +173,14 @@ pnpm verify:live
 This runs a TypeScript script that tests:
 
 - Creating a current-version (schemaVersion 1) task
-- Reading tasks with live updates via the adapter
+- Reading tasks with live updates through the React hook path
 - Seeding and reading a legacy (schemaVersion 0) document
 - Transparent migration to the current domain shape
 - Toggling and deleting tasks
 
 ### Test Against Emulator
 
-All samples connect automatically to the emulator in development mode. Firestore reads will use `readDocumentDomain` from the `firestore-type/adapters` layer, enabling migration-on-read.
+All samples connect automatically to the emulator in development mode. The web sample reads and writes through `firestore-type/react`, which still uses `readDocumentDomain` and model migration logic under the hood.
 
 ## Documentation
 

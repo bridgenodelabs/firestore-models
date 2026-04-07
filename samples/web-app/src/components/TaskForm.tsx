@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { taskPriorityValues, type TaskPriority } from "../models/task";
-import type { CreateTaskInput } from "../lib/taskAdapter";
+import type { CreateTaskInput } from "../hooks/useTaskList";
 
 interface TaskFormProps {
   onCreate: (input: CreateTaskInput) => Promise<void>;

@@ -207,18 +207,115 @@ const taskWithId = {
 
 If you only want structural typing helpers, the adapters also export `toTypedSnapshot` and `toTypedQuerySnapshot`.
 
-## 6) Samples
+## 6) Optional React hooks subpath
+
+If your app uses React and the Firebase Web SDK, you can opt into `firestore-type/react` for subscription and mutation hooks that reuse the same model migration/validation flow.
+
+Small Task example:
+
+```ts
+import { query } from "firebase/firestore";
+import {
+  useFirestoreCollectionDomain,
+  useFirestoreMutations,
+} from "firestore-type/react";
+
+type TaskWithId = Task & { id: string };
+
+export function useTasks() {
+  const source = tasksCollection ? query(tasksCollection) : null;
+
+  const { documents, loading, error } = useFirestoreCollectionDomain<
+    Task,
+    TaskDocumentV1,
+    TaskWithId
+  >({
+    source,
+    model: taskModel,
+    mapDocument: ({ id, domain }) => ({ id, ...domain }),
+  });
+
+  const { create, updatePersistedById, deleteById } = useFirestoreMutations({
+    collection: tasksCollection,
+    model: taskModel,
+  });
+
+  return {
+    tasks: documents,
+    loading,
+    error,
+    createTask: (title: string, priority: TaskPriority) =>
+      create({ title, done: false, priority }),
+    toggleTask: (task: TaskWithId) =>
+      updatePersistedById(task.id, { done: !task.done }),
+    deleteTask: (id: string) => deleteById(id),
+  };
+}
+```
+
+```ts
+import { query } from "firebase/firestore";
+import {
+  useFirestoreCollectionDomain,
+  useFirestoreMutations,
+} from "firestore-type/react";
+
+const {
+  documents: tasks,
+  loading,
+  error,
+} = useFirestoreCollectionDomain({
+  source: query(tasksCollection),
+  model: taskModel,
+});
+
+const {
+  create,
+  updatePersistedById,
+  deleteById,
+  pending,
+  actionDocumentId,
+  error: mutationError,
+} = useFirestoreMutations({
+  collection: tasksCollection,
+  model: taskModel,
+});
+
+await create({
+  title: "Ship docs",
+  done: false,
+  dueAt: new Date(),
+  priority: "high",
+});
+
+await updatePersistedById("task-1", { done: true });
+await deleteById("task-1");
+```
+
+What these hooks do:
+
+- read hooks call `readDocumentDomain`, so migrations still run on reads
+- write hook calls `model.toPersisted(domain, Timestamp.fromDate)` before writes
+- undefined persisted fields are stripped by default before write operations
+
+Migration note for existing React apps:
+
+- if you currently call `readDocumentDomain` manually in `onSnapshot`, move that logic into `useFirestoreCollectionDomain` or `useFirestoreDocumentDomain`
+- if you currently call `model.toPersisted(..., Timestamp.fromDate)` directly before `addDoc`/`setDoc`, move that path into `useFirestoreMutations`
+- `firestore-type/react` is optional and remains isolated from `firestore-type/core`, `firestore-type/time`, and adapter subpaths
+
+## 7) Samples
 
 The sample work is now centered on a shared Task model package:
 
 - `samples/shared/`: reusable Task model, persisted shapes, migration, and timestamp helpers.
-- `samples/web-app/`: runnable React + Vite example using the Firebase Web SDK and the firebase-client adapter.
+- `samples/web-app/`: runnable React + Vite example using the Firebase Web SDK and firestore-type/react hooks.
 - `samples/project-task-sample/`: CLI runner that demonstrates writing a `Project` document and its `tasks` subcollection inside a single transaction while reusing the shared `taskModel`.
 - `samples/firebase-function/`: planned runnable admin-side example for Cloud Functions and the emulator.
 
 Start with `samples/shared`, then run `samples/web-app` to see create/read/update/delete flows against the Firestore emulator.
 
-## 7) Remaining work
+## 8) Remaining work
 
 The core library is implemented and the Firebase adapters ship today. The main remaining work is around ergonomics and examples:
 

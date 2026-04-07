@@ -12,6 +12,7 @@ The library keeps your application-facing domain types separate from the objects
 - Supports optional runtime validation before migration/hydration
 - Normalizes timestamp-like values without importing Firebase types into core code
 - Provides optional adapters for Firebase Web SDK and Firebase Admin SDK
+- Provides an optional React hooks subpath for Firebase Web SDK subscriptions and mutations
 
 ## Install
 
@@ -29,6 +30,12 @@ pnpm add firebase
 
 ```bash
 pnpm add firebase-admin
+```
+
+If you want to use the optional React hooks subpath, install React as well:
+
+```bash
+pnpm add react
 ```
 
 ## Core idea
@@ -293,6 +300,42 @@ const persisted = taskModel.toPersisted(
 );
 ```
 
+## Optional React hooks example
+
+Use the optional `firestore-type/react` subpath to compose migration-on-read and model-aware writes in client apps.
+
+```ts
+import { query } from "firebase/firestore";
+import {
+  useFirestoreCollectionDomain,
+  useFirestoreMutations,
+} from "firestore-type/react";
+
+const {
+  documents: tasks,
+  loading,
+  error,
+} = useFirestoreCollectionDomain({
+  source: query(tasksCollection),
+  model: taskModel,
+});
+
+const { create, updatePersistedById, deleteById } = useFirestoreMutations({
+  collection: tasksCollection,
+  model: taskModel,
+});
+
+await create({
+  title: "Ship docs",
+  done: false,
+  dueAt: new Date(),
+  priority: "high",
+});
+
+await updatePersistedById("task-1", { done: true });
+await deleteById("task-1");
+```
+
 ## Main exports
 
 Top-level package:
@@ -308,6 +351,46 @@ import { defineModel, readDomain } from "firestore-type/core";
 import { dateFromTimestamp, timestampFromDate } from "firestore-type/time";
 import { readDocumentDomain } from "firestore-type/adapters/firebase-client";
 import { readDocumentDomain as readAdminDocumentDomain } from "firestore-type/adapters/firebase-admin";
+import {
+  useFirestoreCollectionDomain,
+  useFirestoreMutations,
+} from "firestore-type/react";
+```
+
+## Claude Code agents
+
+The package ships two [Claude Code](https://claude.ai/code) subagent definitions in the `agents/` directory. Once installed they automate the most repetitive parts of adopting the library.
+
+| File | What it does |
+|------|-------------|
+| `agents/persistInterfaceToFirebase.md` | Give it a TypeScript interface and it scaffolds the full `firestore-type` model: persisted type, validator, `defineModel` with `toPersisted`/`fromPersisted`, and a Firebase Web SDK usage snippet |
+| `agents/createFirestoreHooks.md` | Give it an existing model and collection reference and it generates typed React hooks (`use<Name>List`, `use<Name>Document`) that compose `useFirestoreCollectionDomain`, `useFirestoreDocumentDomain`, and `useFirestoreMutations` |
+
+### Using the agents
+
+Copy the agent files you want into your project's `.claude/agents/` directory:
+
+```bash
+mkdir -p .claude/agents
+cp node_modules/firestore-type/agents/persistInterfaceToFirebase.md .claude/agents/
+cp node_modules/firestore-type/agents/createFirestoreHooks.md .claude/agents/
+```
+
+Claude Code picks up any `.md` files in `.claude/agents/` automatically. The agents will then appear when Claude decides the task matches their description, or you can invoke them explicitly:
+
+```
+Use the persistInterfaceToFirebase agent to scaffold a model for this interface:
+
+interface Product {
+  name: string;
+  price: number;
+  createdAt: Date;
+}
+```
+
+```
+Use the createFirestoreHooks agent to generate React hooks for productModel
+using the productsCollection reference in src/lib/firestore.ts.
 ```
 
 ## Development
@@ -323,5 +406,5 @@ See `docs/firestore-object-toolkit-design.md` for the design overview and `docs/
 Sample projects:
 
 - `samples/shared`: shared Task model with migration and validation
-- `samples/web-app`: runnable React + Vite Firebase Emulator sample using the firebase-client adapter
+- `samples/web-app`: runnable React + Vite Firebase Emulator sample using firestore-type/react hooks
 - `samples/project-task-sample`: CLI runner demonstrating transactional writes to a nested `projects/{projectId}/tasks` subcollection

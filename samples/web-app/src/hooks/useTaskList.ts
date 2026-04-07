@@ -1,13 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 
 import {
-  createTask,
-  deleteTaskById,
-  subscribeToTasks,
-  toggleTaskDone,
-  type CreateTaskInput,
-  type TaskWithId,
-} from "../lib/taskAdapter";
+  useFirestoreCollectionDomain,
+  useFirestoreMutations,
+} from "firestore-type/react";
+import { query } from "firebase/firestore";
+
+import { tasksCollection } from "../lib/firestore";
+import {
+  taskModel,
+  type Task,
+  type TaskPersistedV1,
+  type TaskPriority,
+} from "../models/task";
+
+export interface TaskWithId extends Task {
+  id: string;
+}
+
+export interface CreateTaskInput {
+  title: string;
+  dueAt?: Date;
+  priority: TaskPriority;
+}
 
 interface UseTaskListResult {
   tasks: TaskWithId[];
@@ -21,75 +36,73 @@ interface UseTaskListResult {
 }
 
 export function useTaskList(): UseTaskListResult {
-  const [tasks, setTasks] = useState<TaskWithId[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [mutationError, setMutationError] = useState<string | null>(null);
-  const [actionTaskId, setActionTaskId] = useState<string | null>(null);
+  const source = useMemo(
+    () => (tasksCollection === null ? null : query(tasksCollection)),
+    [],
+  );
 
-  useEffect(() => {
-    const unsubscribe = subscribeToTasks(
-      (nextTasks) => {
-        setTasks(nextTasks);
-        setLoading(false);
-        setError(null);
-      },
-      (nextError) => {
-        setLoading(false);
-        setError(nextError.message);
-      },
-    );
+  const {
+    documents: tasks,
+    loading,
+    error,
+  } = useFirestoreCollectionDomain<Task, TaskPersistedV1, TaskWithId>({
+    source,
+    model: taskModel,
+    mapDocument: ({ id, domain }) => ({
+      id,
+      ...domain,
+    }),
+  });
 
-    return unsubscribe;
-  }, []);
+  const {
+    create: createDocument,
+    updatePersistedById,
+    deleteById,
+    pending,
+    error: mutationError,
+    actionDocumentId,
+    clearError,
+  } = useFirestoreMutations({
+    collection: tasksCollection,
+    model: taskModel,
+  });
 
-  const create = useCallback(async (input: CreateTaskInput) => {
-    setMutationError(null);
+  const create = useCallback(
+    async (input: CreateTaskInput) => {
+      clearError();
 
-    try {
-      await createTask(input);
-    } catch (nextError) {
-      const message =
-        nextError instanceof Error
-          ? nextError.message
-          : "Failed to create task";
-      setMutationError(message);
-    }
-  }, []);
+      const trimmedTitle = input.title.trim();
+      if (!trimmedTitle) {
+        throw new Error("Task title is required");
+      }
 
-  const toggle = useCallback(async (task: TaskWithId) => {
-    setMutationError(null);
-    setActionTaskId(task.id);
+      await createDocument({
+        title: trimmedTitle,
+        done: false,
+        dueAt: input.dueAt,
+        priority: input.priority,
+      });
+    },
+    [clearError, createDocument],
+  );
 
-    try {
-      await toggleTaskDone(task);
-    } catch (nextError) {
-      const message =
-        nextError instanceof Error
-          ? nextError.message
-          : "Failed to update task";
-      setMutationError(message);
-    } finally {
-      setActionTaskId(null);
-    }
-  }, []);
+  const toggle = useCallback(
+    async (task: TaskWithId) => {
+      clearError();
+      await updatePersistedById(task.id, {
+        done: !task.done,
+      });
+    },
+    [clearError, updatePersistedById],
+  );
 
-  const remove = useCallback(async (taskId: string) => {
-    setMutationError(null);
-    setActionTaskId(taskId);
-
-    try {
-      await deleteTaskById(taskId);
-    } catch (nextError) {
-      const message =
-        nextError instanceof Error
-          ? nextError.message
-          : "Failed to delete task";
-      setMutationError(message);
-    } finally {
-      setActionTaskId(null);
-    }
-  }, []);
+  const remove = useCallback(
+    async (taskId: string) => {
+      clearError();
+      await deleteById(taskId);
+    },
+    [clearError, deleteById],
+  );
 
   return useMemo(
     () => ({
@@ -97,7 +110,7 @@ export function useTaskList(): UseTaskListResult {
       loading,
       error,
       mutationError,
-      actionTaskId,
+      actionTaskId: pending ? actionDocumentId : null,
       create,
       toggle,
       remove,
@@ -107,7 +120,8 @@ export function useTaskList(): UseTaskListResult {
       loading,
       error,
       mutationError,
-      actionTaskId,
+      pending,
+      actionDocumentId,
       create,
       toggle,
       remove,

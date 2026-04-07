@@ -42,7 +42,7 @@ interface Task {
 
 ## Intended Consumers
 
-- `samples/web-app/`: will reuse this model with the Firebase Web SDK and `firestore-type/adapters/firebase-client`
+- `samples/web-app/`: will reuse this model with the Firebase Web SDK and `firestore-type/react`
 - `samples/firebase-function/`: will reuse this model with the Admin SDK and `firestore-type/adapters/firebase-admin`
 
 ## Type Checking

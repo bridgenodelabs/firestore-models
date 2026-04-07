@@ -1,4 +1,4 @@
-import type { TaskWithId } from "../lib/taskAdapter";
+import type { TaskWithId } from "../hooks/useTaskList";
 
 interface TaskListProps {
   tasks: TaskWithId[];

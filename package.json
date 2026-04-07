@@ -25,10 +25,15 @@
     "./adapters/firebase-admin": {
       "import": "./dist/adapters/firebase-admin/index.js",
       "types": "./dist/adapters/firebase-admin/index.d.ts"
+    },
+    "./react": {
+      "import": "./dist/react/index.js",
+      "types": "./dist/react/index.d.ts"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "agents"
   ],
   "scripts": {
     "build": "tsup",
@@ -46,19 +51,29 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "jsdom": "^26.1.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
     "firebase": ">=10.0.0",
-    "firebase-admin": ">=12.0.0"
+    "firebase-admin": ">=12.0.0",
+    "react": ">=18.0.0"
   },
   "peerDependenciesMeta": {
     "firebase": {
       "optional": true
     },
     "firebase-admin": {
+      "optional": true
+    },
+    "react": {
       "optional": true
     }
   }
