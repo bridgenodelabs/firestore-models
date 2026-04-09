@@ -1,0 +1,14 @@
+.claude/
+docs/
+samples/
+pnpm-lock.yaml
+.gitignore
+.git/
+.github/
+.vscode/
+*.test.ts
+vitest.config.ts
+tsup.config.ts
+tsconfig.json
+plan-*.prompt.md
+*.debug.log
