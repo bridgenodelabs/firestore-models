@@ -1,6 +1,6 @@
 {
   "name": "@bridgenodelabs/firestore-models",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "TypeScript types and utilities for Firestore, usable in both browser and Node.js environments",
   "type": "module",
   "main": "./dist/index.js",
