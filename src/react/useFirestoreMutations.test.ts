@@ -113,6 +113,107 @@ describe("useFirestoreMutations", () => {
     });
   });
 
+  it("updateById converts partial domain patches through toPartialPersisted", async () => {
+    const model = defineModel<
+      { title: string; dueAt?: Date },
+      { schemaVersion: 1; title: string; dueAt?: TimestampLike }
+    >({
+      currentVersion: 1,
+      toPersisted: (domain, toTimestamp) => ({
+        schemaVersion: 1 as const,
+        title: domain.title,
+        dueAt: domain.dueAt ? toTimestamp?.(domain.dueAt) : undefined,
+      }),
+      toPartialPersisted: (patch, toTimestamp) => ({
+        title: patch.title,
+        dueAt: patch.dueAt ? toTimestamp?.(patch.dueAt) : undefined,
+      }),
+      fromPersisted: (persisted) => ({ title: persisted.title }),
+    });
+
+    docMock.mockReturnValue({ path: "tasks/task-1" });
+    updateDocMock.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useFirestoreMutations({
+        collection: { path: "tasks" } as never,
+        model,
+      }),
+    );
+
+    await result.current.updateById("task-1", {
+      dueAt: new Date("2026-04-20T10:00:00.000Z"),
+    });
+
+    expect(updateDocMock).toHaveBeenCalledWith(
+      { path: "tasks/task-1" },
+      {
+        dueAt: {
+          seconds: 1776679200,
+          nanoseconds: 0,
+        },
+      },
+    );
+  });
+
+  it("updateById surfaces a missing toPartialPersisted error", async () => {
+    const model = defineModel({
+      currentVersion: 1,
+      toPersisted: (domain: { title: string }) => ({
+        schemaVersion: 1 as const,
+        title: domain.title,
+      }),
+      fromPersisted: (persisted) => ({ title: persisted.title }),
+    });
+
+    const { result } = renderHook(() =>
+      useFirestoreMutations({
+        collection: { path: "tasks" } as never,
+        model,
+      }),
+    );
+
+    await expect(result.current.updateById("task-1", { title: "x" })).rejects.toThrow(
+      "Model is missing toPartialPersisted. Provide toPartialPersisted or use updatePersistedById.",
+    );
+    await waitFor(() => {
+      expect(result.current.error).toBe(
+        "Model is missing toPartialPersisted. Provide toPartialPersisted or use updatePersistedById.",
+      );
+    });
+  });
+
+  it("setPersistedById writes raw persisted data", async () => {
+    const model = defineModel({
+      currentVersion: 1,
+      toPersisted: (domain: { title: string }) => ({
+        schemaVersion: 1 as const,
+        title: domain.title,
+      }),
+      fromPersisted: (persisted) => ({ title: persisted.title }),
+    });
+
+    docMock.mockReturnValue({ path: "tasks/task-1" });
+    setDocMock.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useFirestoreMutations({
+        collection: { path: "tasks" } as never,
+        model,
+      }),
+    );
+
+    await result.current.setPersistedById("task-1", {
+      schemaVersion: 1,
+      title: "raw",
+    });
+
+    expect(setDocMock).toHaveBeenCalledWith(
+      { path: "tasks/task-1" },
+      { schemaVersion: 1, title: "raw" },
+    );
+  });
+
   it("throws with a clear error when collection is missing", async () => {
     const model = defineModel({
       currentVersion: 1,

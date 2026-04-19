@@ -34,6 +34,12 @@ export interface UseFirestoreMutationsResult<
   clearError: () => void;
   create: (domain: Domain) => Promise<string>;
   setById: (id: string, domain: Domain, options?: SetOptions) => Promise<void>;
+  updateById: (id: string, patch: Partial<Domain>) => Promise<void>;
+  setPersistedById: (
+    id: string,
+    value: PersistedLatest,
+    options?: SetOptions,
+  ) => Promise<void>;
   updatePersistedById: (
     id: string,
     patch: Partial<PersistedLatest>,
@@ -43,6 +49,12 @@ export interface UseFirestoreMutationsResult<
 
 function getMissingCollectionError(): Error {
   return new Error("Firestore collection reference is required for mutations");
+}
+
+function getMissingPartialPersistedError(): Error {
+  return new Error(
+    "Model is missing toPartialPersisted. Provide toPartialPersisted or use updatePersistedById.",
+  );
 }
 
 export function useFirestoreMutations<
@@ -75,6 +87,32 @@ export function useFirestoreMutations<
         : persisted;
     },
     [model, toTimestamp, stripUndefined],
+  );
+
+  const toPersistedPatch = useCallback(
+    (patch: Partial<Domain>): Partial<PersistedLatest> => {
+      if (model.toPartialPersisted === undefined) {
+        throw getMissingPartialPersistedError();
+      }
+
+      const persistedPatch = model.toPartialPersisted(patch, toTimestamp);
+      return stripUndefined
+        ? (stripUndefinedFields(
+            persistedPatch as FirebaseDocumentData,
+          ) as Partial<PersistedLatest>)
+        : persistedPatch;
+    },
+    [model, toTimestamp, stripUndefined],
+  );
+
+  const normalizePersistedPatch = useCallback(
+    (patch: Partial<PersistedLatest>): Partial<PersistedLatest> =>
+      stripUndefined
+        ? (stripUndefinedFields(
+            patch as FirebaseDocumentData,
+          ) as Partial<PersistedLatest>)
+        : patch,
+    [stripUndefined],
   );
 
   const runMutation = useCallback(
@@ -156,6 +194,51 @@ export function useFirestoreMutations<
     [collection, toPersistedData, runMutation],
   );
 
+  const setPersistedById = useCallback(
+    async (id: string, value: PersistedLatest, options?: SetOptions): Promise<void> => {
+      if (collection === null) {
+        const missingCollectionError = getMissingCollectionError();
+        setError(missingCollectionError.message);
+        throw missingCollectionError;
+      }
+
+      await runMutation(
+        id,
+        async () => {
+          const persisted = normalizePersistedPatch(value) as FirebaseDocumentData;
+          if (options === undefined) {
+            await setDoc(doc(collection, id), persisted);
+            return;
+          }
+
+          await setDoc(doc(collection, id), persisted, options);
+        },
+        "Failed to write Firestore document",
+      );
+    },
+    [collection, normalizePersistedPatch, runMutation],
+  );
+
+  const updateById = useCallback(
+    async (id: string, patch: Partial<Domain>): Promise<void> => {
+      if (collection === null) {
+        const missingCollectionError = getMissingCollectionError();
+        setError(missingCollectionError.message);
+        throw missingCollectionError;
+      }
+
+      await runMutation(
+        id,
+        async () => {
+          const nextPatch = toPersistedPatch(patch);
+          await updateDoc(doc(collection, id), nextPatch as FirebaseDocumentData);
+        },
+        "Failed to update Firestore document",
+      );
+    },
+    [collection, toPersistedPatch, runMutation],
+  );
+
   const updatePersistedById = useCallback(
     async (id: string, patch: Partial<PersistedLatest>): Promise<void> => {
       if (collection === null) {
@@ -167,9 +250,7 @@ export function useFirestoreMutations<
       await runMutation(
         id,
         async () => {
-          const nextPatch = stripUndefined
-            ? stripUndefinedFields(patch as FirebaseDocumentData)
-            : patch;
+          const nextPatch = normalizePersistedPatch(patch);
 
           await updateDoc(
             doc(collection, id),
@@ -179,7 +260,7 @@ export function useFirestoreMutations<
         "Failed to update Firestore document",
       );
     },
-    [collection, stripUndefined, runMutation],
+    [collection, normalizePersistedPatch, runMutation],
   );
 
   const deleteById = useCallback(
@@ -209,6 +290,8 @@ export function useFirestoreMutations<
       clearError,
       create,
       setById,
+      updateById,
+      setPersistedById,
       updatePersistedById,
       deleteById,
     }),
@@ -219,6 +302,8 @@ export function useFirestoreMutations<
       clearError,
       create,
       setById,
+      updateById,
+      setPersistedById,
       updatePersistedById,
       deleteById,
     ],

@@ -207,6 +207,86 @@ const taskWithId = {
 
 If you only want structural typing helpers, the adapters also export `toTypedSnapshot` and `toTypedQuerySnapshot`.
 
+## 5.5) Writing to Firestore
+
+The write path now has three explicit lanes:
+
+- full domain write: convert with `model.toPersisted(...)`
+- partial domain update: convert with `model.toPartialPersisted(...)`
+- raw persisted write/update: pass persisted data directly on purpose
+
+### Adapter helpers
+
+Both Firebase adapters expose matching write helpers:
+
+- `createDocumentDomain(ref, domain, model, options?)`
+- `setDocumentDomain(ref, domain, model, options?)`
+- `updateDocumentDomain(ref, patch, model, options?)`
+- `updateDocumentPersisted(ref, patch)`
+
+Example:
+
+```ts
+import {
+  createDocumentDomain,
+  setDocumentDomain,
+  updateDocumentDomain,
+  updateDocumentPersisted,
+} from "@bridgenodelabs/firestore-models/adapters/firebase-client";
+import { Timestamp } from "firebase/firestore";
+
+await createDocumentDomain(taskRef, task, taskModel, {
+  toTimestamp: Timestamp.fromDate,
+});
+
+await setDocumentDomain(taskRef, task, taskModel, {
+  toTimestamp: Timestamp.fromDate,
+  merge: true,
+});
+
+await updateDocumentDomain(
+  taskRef,
+  { dueAt: new Date(), priority: "high" },
+  taskModel,
+  { toTimestamp: Timestamp.fromDate },
+);
+
+await updateDocumentPersisted(taskRef, {
+  priority: "low",
+});
+```
+
+### Partial domain updates require `toPartialPersisted`
+
+`updateDocumentDomain(...)` and the React `updateById(...)` helper need a model-owned partial conversion.
+
+```ts
+const taskModel = defineModel<Task, TaskDocumentV1>({
+  currentVersion: 1,
+  toPersisted: (task, toTimestamp) => ({
+    schemaVersion: 1,
+    title: task.title,
+    done: task.done,
+    dueAt: task.dueAt ? toTimestamp?.(task.dueAt) : undefined,
+    priority: task.priority,
+  }),
+  toPartialPersisted: (patch, toTimestamp) => ({
+    title: patch.title,
+    done: patch.done,
+    dueAt: patch.dueAt ? toTimestamp?.(patch.dueAt) : undefined,
+    priority: patch.priority,
+  }),
+  fromPersisted: (doc) => ({
+    title: doc.title,
+    done: doc.done,
+    dueAt: doc.dueAt ? dateFromTimestamp(doc.dueAt) : undefined,
+    priority: doc.priority,
+  }),
+});
+```
+
+Without `toPartialPersisted`, partial domain updates throw a descriptive error and callers should use a raw persisted update helper instead.
+
 ## 6) Optional React hooks subpath
 
 If your app uses React and the Firebase Web SDK, you can opt into `@bridgenodelabs/firestore-models/react` for subscription and mutation hooks that reuse the same model migration/validation flow.
@@ -235,7 +315,7 @@ export function useTasks() {
     mapDocument: ({ id, domain }) => ({ id, ...domain }),
   });
 
-  const { create, updatePersistedById, deleteById } = useFirestoreMutations({
+  const { create, updateById, deleteById } = useFirestoreMutations({
     collection: tasksCollection,
     model: taskModel,
   });
@@ -247,7 +327,7 @@ export function useTasks() {
     createTask: (title: string, priority: TaskPriority) =>
       create({ title, done: false, priority }),
     toggleTask: (task: TaskWithId) =>
-      updatePersistedById(task.id, { done: !task.done }),
+      updateById(task.id, { done: !task.done }),
     deleteTask: (id: string) => deleteById(id),
   };
 }
@@ -271,6 +351,8 @@ const {
 
 const {
   create,
+  updateById,
+  setPersistedById,
   updatePersistedById,
   deleteById,
   pending,
@@ -288,6 +370,13 @@ await create({
   priority: "high",
 });
 
+await updateById("task-1", { done: true });
+await setPersistedById("task-1", {
+  schemaVersion: 1,
+  title: "Ship docs",
+  done: true,
+  priority: "high",
+});
 await updatePersistedById("task-1", { done: true });
 await deleteById("task-1");
 ```
@@ -296,6 +385,8 @@ What these hooks do:
 
 - read hooks call `readDocumentDomain`, so migrations still run on reads
 - write hook calls `model.toPersisted(domain, Timestamp.fromDate)` before writes
+- `updateById` calls `model.toPartialPersisted(patch, Timestamp.fromDate)` for partial domain updates
+- `setPersistedById` and `updatePersistedById` are explicit raw persisted escape hatches
 - undefined persisted fields are stripped by default before write operations
 
 Migration note for existing React apps:

@@ -1,19 +1,30 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
+  createDocumentDomain as clientCreateDocumentDomain,
   toTypedSnapshot as clientToTypedSnapshot,
   toTypedQuerySnapshot as clientToTypedQuerySnapshot,
   readDocumentDomain as clientReadDocumentDomain,
+  setDocumentDomain as clientSetDocumentDomain,
+  updateDocumentDomain as clientUpdateDocumentDomain,
+  updateDocumentPersisted as clientUpdateDocumentPersisted,
   type BrowserDocumentSnapshot,
+  type BrowserDocumentWriter,
   type BrowserQuerySnapshot,
 } from './firebase-client/index.js';
 import {
+  createDocumentDomain as adminCreateDocumentDomain,
   toTypedSnapshot as adminToTypedSnapshot,
   toTypedQuerySnapshot as adminToTypedQuerySnapshot,
   readDocumentDomain as adminReadDocumentDomain,
+  setDocumentDomain as adminSetDocumentDomain,
+  updateDocumentDomain as adminUpdateDocumentDomain,
+  updateDocumentPersisted as adminUpdateDocumentPersisted,
   type AdminDocumentSnapshot,
+  type AdminDocumentWriter,
   type AdminQuerySnapshot,
 } from './firebase-admin/index.js';
 import { defineModel } from '../core/defineModel.js';
+import type { TimestampLike } from '../time/timestampLike.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -35,6 +46,28 @@ function makeAdminSnap(
   return { id, exists, data: () => docData };
 }
 
+function makeBrowserWriter(): BrowserDocumentWriter<{
+  schemaVersion: 1;
+  name: string;
+  updatedAt?: TimestampLike;
+}> {
+  return {
+    set: vi.fn().mockResolvedValue(undefined),
+    update: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function makeAdminWriter(): AdminDocumentWriter<{
+  schemaVersion: 1;
+  name: string;
+  updatedAt?: TimestampLike;
+}> {
+  return {
+    set: vi.fn().mockResolvedValue(undefined),
+    update: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 const simpleSpec = defineModel({
   currentVersion: 1,
   toPersisted: (d: { name: string }) => ({ schemaVersion: 1 as const, name: d.name }),
@@ -45,6 +78,23 @@ const simpleSpec = defineModel({
       name: doc.oldName,
     }),
   },
+});
+
+const partialSpec = defineModel<
+  { name: string; updatedAt?: Date },
+  { schemaVersion: 1; name: string; updatedAt?: TimestampLike }
+>({
+  currentVersion: 1,
+  toPersisted: (d, toTimestamp) => ({
+    schemaVersion: 1 as const,
+    name: d.name,
+    updatedAt: d.updatedAt ? toTimestamp?.(d.updatedAt) : undefined,
+  }),
+  toPartialPersisted: (patch, toTimestamp) => ({
+    name: patch.name,
+    updatedAt: patch.updatedAt ? toTimestamp?.(patch.updatedAt) : undefined,
+  }),
+  fromPersisted: (p) => ({ name: p.name }),
 });
 
 // ---------------------------------------------------------------------------
@@ -135,6 +185,88 @@ describe('firebase-client: readDocumentDomain', () => {
   });
 });
 
+describe('firebase-client: write helpers', () => {
+  it('setDocumentDomain converts through toPersisted', async () => {
+    const ref = makeBrowserWriter();
+
+    await clientSetDocumentDomain(
+      ref,
+      { name: 'Ada', updatedAt: new Date('2026-04-19T00:00:00.000Z') },
+      partialSpec,
+      {
+        toTimestamp: (date) => ({
+          seconds: Math.floor(date.getTime() / 1000),
+          nanoseconds: 0,
+        }),
+      },
+    );
+
+    expect(ref.set).toHaveBeenCalledWith({
+      schemaVersion: 1,
+      name: 'Ada',
+      updatedAt: {
+        seconds: 1776556800,
+        nanoseconds: 0,
+      },
+    });
+  });
+
+  it('createDocumentDomain performs a full write without merge options', async () => {
+    const ref = makeBrowserWriter();
+
+    await clientCreateDocumentDomain(ref, { name: 'Ada' }, partialSpec);
+
+    expect(ref.set).toHaveBeenCalledWith({
+      schemaVersion: 1,
+      name: 'Ada',
+      updatedAt: undefined,
+    });
+  });
+
+  it('updateDocumentDomain converts through toPartialPersisted', async () => {
+    const ref = makeBrowserWriter();
+
+    await clientUpdateDocumentDomain(
+      ref,
+      { updatedAt: new Date('2026-04-20T00:00:00.000Z') },
+      partialSpec,
+      {
+        toTimestamp: (date) => ({
+          seconds: Math.floor(date.getTime() / 1000),
+          nanoseconds: 0,
+        }),
+      },
+    );
+
+    expect(ref.update).toHaveBeenCalledWith({
+      updatedAt: {
+        seconds: 1776643200,
+        nanoseconds: 0,
+      },
+    });
+  });
+
+  it('updateDocumentDomain throws when toPartialPersisted is missing', async () => {
+    const ref = makeBrowserWriter();
+
+    await expect(clientUpdateDocumentDomain(ref, { name: 'Grace' }, simpleSpec)).rejects.toThrow(
+      'Model is missing toPartialPersisted. Provide toPartialPersisted or use updateDocumentPersisted.',
+    );
+  });
+
+  it('updateDocumentPersisted bypasses model conversion', async () => {
+    const ref = makeBrowserWriter();
+
+    await clientUpdateDocumentPersisted(ref, {
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+    });
+
+    expect(ref.update).toHaveBeenCalledWith({
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+    });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // firebase-admin adapter
 // ---------------------------------------------------------------------------
@@ -220,5 +352,87 @@ describe('firebase-admin: readDocumentDomain', () => {
     expect(() => adminReadDocumentDomain(snap, simpleSpec)).toThrow(
       'Document "doc3" returned no data.',
     );
+  });
+});
+
+describe('firebase-admin: write helpers', () => {
+  it('setDocumentDomain converts through toPersisted', async () => {
+    const ref = makeAdminWriter();
+
+    await adminSetDocumentDomain(
+      ref,
+      { name: 'Ada', updatedAt: new Date('2026-04-19T00:00:00.000Z') },
+      partialSpec,
+      {
+        toTimestamp: (date) => ({
+          seconds: Math.floor(date.getTime() / 1000),
+          nanoseconds: 0,
+        }),
+      },
+    );
+
+    expect(ref.set).toHaveBeenCalledWith({
+      schemaVersion: 1,
+      name: 'Ada',
+      updatedAt: {
+        seconds: 1776556800,
+        nanoseconds: 0,
+      },
+    });
+  });
+
+  it('createDocumentDomain performs a full write without merge options', async () => {
+    const ref = makeAdminWriter();
+
+    await adminCreateDocumentDomain(ref, { name: 'Ada' }, partialSpec);
+
+    expect(ref.set).toHaveBeenCalledWith({
+      schemaVersion: 1,
+      name: 'Ada',
+      updatedAt: undefined,
+    });
+  });
+
+  it('updateDocumentDomain converts through toPartialPersisted', async () => {
+    const ref = makeAdminWriter();
+
+    await adminUpdateDocumentDomain(
+      ref,
+      { updatedAt: new Date('2026-04-20T00:00:00.000Z') },
+      partialSpec,
+      {
+        toTimestamp: (date) => ({
+          seconds: Math.floor(date.getTime() / 1000),
+          nanoseconds: 0,
+        }),
+      },
+    );
+
+    expect(ref.update).toHaveBeenCalledWith({
+      updatedAt: {
+        seconds: 1776643200,
+        nanoseconds: 0,
+      },
+    });
+  });
+
+  it('updateDocumentDomain throws when toPartialPersisted is missing', async () => {
+    const ref = makeAdminWriter();
+
+    await expect(adminUpdateDocumentDomain(ref, { name: 'Grace' }, simpleSpec)).rejects.toThrow(
+      'Model is missing toPartialPersisted. Provide toPartialPersisted or use updateDocumentPersisted.',
+    );
+  });
+
+  it('updateDocumentPersisted bypasses model conversion', async () => {
+    const ref = makeAdminWriter();
+
+    await adminUpdateDocumentPersisted(ref, {
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+    });
+
+    expect(ref.update).toHaveBeenCalledWith({
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+    });
   });
 });

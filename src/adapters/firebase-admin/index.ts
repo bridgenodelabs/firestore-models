@@ -9,7 +9,7 @@
  */
 
 import type { DocumentData, TypedDocumentSnapshot, TypedQuerySnapshot } from '../../types.js';
-import type { ModelSpec, PersistedBase } from '../../core/types.js';
+import type { ModelSpec, PersistedBase, ToTimestamp } from '../../core/types.js';
 import { readDomain } from '../../core/migrate.js';
 
 /**
@@ -30,6 +30,22 @@ export interface AdminQuerySnapshot<T> {
   docs: AdminDocumentSnapshot<T>[];
   empty: boolean;
   size: number;
+}
+
+export interface AdminSetOptions {
+  merge?: boolean;
+}
+
+export interface AdminDocumentWriter<T> {
+  set(data: T): Promise<unknown>;
+  set(data: T, options: AdminSetOptions): Promise<unknown>;
+  update(data: Partial<T>): Promise<unknown>;
+}
+
+function getMissingPartialPersistedError(): Error {
+  return new Error(
+    'Model is missing toPartialPersisted. Provide toPartialPersisted or use updateDocumentPersisted.',
+  );
 }
 
 /**
@@ -81,4 +97,49 @@ export function readDocumentDomain<Domain, PersistedLatest extends PersistedBase
     throw new Error(`Document "${snapshot.id}" returned no data.`);
   }
   return readDomain(raw, spec);
+}
+
+export async function createDocumentDomain<Domain, PersistedLatest extends PersistedBase>(
+  ref: AdminDocumentWriter<PersistedLatest>,
+  domain: Domain,
+  spec: ModelSpec<Domain, PersistedLatest>,
+  options?: { toTimestamp?: ToTimestamp },
+): Promise<void> {
+  const persisted = spec.toPersisted(domain, options?.toTimestamp);
+  await ref.set(persisted);
+}
+
+export async function setDocumentDomain<Domain, PersistedLatest extends PersistedBase>(
+  ref: AdminDocumentWriter<PersistedLatest>,
+  domain: Domain,
+  spec: ModelSpec<Domain, PersistedLatest>,
+  options?: { merge?: boolean; toTimestamp?: ToTimestamp },
+): Promise<void> {
+  const persisted = spec.toPersisted(domain, options?.toTimestamp);
+  if (options?.merge === undefined) {
+    await ref.set(persisted);
+    return;
+  }
+
+  await ref.set(persisted, { merge: options.merge });
+}
+
+export async function updateDocumentDomain<Domain, PersistedLatest extends PersistedBase>(
+  ref: AdminDocumentWriter<PersistedLatest>,
+  patch: Partial<Domain>,
+  spec: ModelSpec<Domain, PersistedLatest>,
+  options?: { toTimestamp?: ToTimestamp },
+): Promise<void> {
+  if (spec.toPartialPersisted === undefined) {
+    throw getMissingPartialPersistedError();
+  }
+
+  await ref.update(spec.toPartialPersisted(patch, options?.toTimestamp));
+}
+
+export async function updateDocumentPersisted<PersistedLatest extends PersistedBase>(
+  ref: AdminDocumentWriter<PersistedLatest>,
+  patch: Partial<PersistedLatest>,
+): Promise<void> {
+  await ref.update(patch);
 }

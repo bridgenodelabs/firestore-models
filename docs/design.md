@@ -68,6 +68,7 @@ tests live alongside source files as `src/**/*.test.ts`
 - `ModelSpec<Domain, PersistedLatest>`:
   - `currentVersion`
   - `toPersisted(domain, toTimestamp?)`
+  - `toPartialPersisted?(patch, toTimestamp?)`
   - `fromPersisted(persistedLatest)`
   - `migrations?: Record<number, Migration<any, any>>`
   - `validatePersisted?: (value: unknown) => void`
@@ -81,6 +82,8 @@ tests live alongside source files as `src/**/*.test.ts`
   - `assertObject`
   - `assertNumber`
   - `createValidator`
+  - `createPersistedWrite`
+  - `createPersistedUpdate`
 
 ### `src/time`
 
@@ -98,6 +101,7 @@ Each adapter exports:
 
 - snapshot wrapper helpers: `toTypedSnapshot`, `toTypedQuerySnapshot`
 - `readDocumentDomain(snapshot, spec)` to run the full read flow from a real Firestore snapshot
+- write helpers for full domain writes, partial domain updates, and raw persisted updates
 
 Adapters are optional wrappers that can be implemented by consumers or in-package with peer dependencies.
 
@@ -105,6 +109,7 @@ Adapters are optional wrappers that can be implemented by consumers or in-packag
 
 - Domain objects use `Date`, not Firestore SDK timestamp classes.
 - Timestamp conversion happens at the persistence boundary through `ToTimestamp` or `timestampFromDate`.
+- Partial domain updates stay model-owned through optional `toPartialPersisted`.
 - Persisted document IDs live outside the persisted payload. Callers compose `snapshot.id` with the hydrated domain object when needed.
 - Migrations are pure functions and operate on persisted shapes only.
 

@@ -27,6 +27,10 @@ export interface ModelSpec<Domain, PersistedLatest extends PersistedBase> {
    *   TimestampLike fields. If omitted, Date fields must be handled by the caller.
    */
   toPersisted: (domain: Domain, toTimestamp?: ToTimestamp) => PersistedLatest;
+  toPartialPersisted?: (
+    patch: Partial<Domain>,
+    toTimestamp?: ToTimestamp,
+  ) => Partial<PersistedLatest>;
   fromPersisted: (persisted: PersistedLatest) => Domain;
   migrations?: Record<number, Migration<any, any>>;
   validatePersisted?: (value: unknown) => void;

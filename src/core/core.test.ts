@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { assertSchemaVersion, migratePersisted, readDomain } from './migrate.js';
 import { assertObject, assertNumber, createValidator } from './validate.js';
 import { defineModel } from './defineModel.js';
+import { createPersistedUpdate, createPersistedWrite } from './write.js';
 
 // ---------------------------------------------------------------------------
 // assertSchemaVersion
@@ -133,6 +134,47 @@ describe('defineModel', () => {
       fromPersisted: (p: { schemaVersion: 1; x: number }) => ({ x: p.x }),
     };
     expect(defineModel(spec)).toBe(spec);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// write helpers
+// ---------------------------------------------------------------------------
+
+describe('write helpers', () => {
+  const spec = defineModel<
+    { label: string; enabled: boolean },
+    { schemaVersion: 1; label: string; enabled: boolean }
+  >({
+    currentVersion: 1,
+    toPersisted: (domain: { label: string; enabled: boolean }) => ({
+      schemaVersion: 1 as const,
+      label: domain.label,
+      enabled: domain.enabled,
+    }),
+    toPartialPersisted: (patch: Partial<{ label: string; enabled: boolean }>) => patch,
+    fromPersisted: (persisted) => ({
+      label: persisted.label,
+      enabled: persisted.enabled,
+    }),
+  });
+
+  it('createPersistedWrite returns the same full write object reference', () => {
+    const persisted = { schemaVersion: 1 as const, label: 'Ada', enabled: true };
+
+    expect(createPersistedWrite(spec, persisted)).toBe(persisted);
+  });
+
+  it('createPersistedUpdate returns the same patch object reference', () => {
+    const patch = { enabled: false };
+
+    expect(createPersistedUpdate(spec, patch)).toBe(patch);
+  });
+
+  it('accepts partial persisted updates', () => {
+    const patch = createPersistedUpdate(spec, { label: 'Grace' });
+
+    expect(patch).toEqual({ label: 'Grace' });
   });
 });
 
