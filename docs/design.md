@@ -110,6 +110,7 @@ Adapters are optional wrappers that can be implemented by consumers or in-packag
 - Domain objects use `Date`, not Firestore SDK timestamp classes.
 - Timestamp conversion happens at the persistence boundary through `ToTimestamp` or `timestampFromDate`.
 - Partial domain updates stay model-owned through optional `toPartialPersisted`.
+- `toPartialPersisted` is intended for shallow partial conversion. Raw persisted updates remain available as explicit escape hatches.
 - Persisted document IDs live outside the persisted payload. Callers compose `snapshot.id` with the hydrated domain object when needed.
 - Migrations are pure functions and operate on persisted shapes only.
 
@@ -129,7 +130,7 @@ Adapters are optional wrappers that can be implemented by consumers or in-packag
 - Validation hook is optional and composable.
 - Timestamp helpers work with multiple timestamp-like shapes.
 - Adapter helpers bridge real Firestore snapshots into the read flow without introducing Firebase imports into `core` or `time`.
-- Shared sample code demonstrates migration-on-read and timestamp conversion boundaries with one reusable Task model.
+- Shared sample code demonstrates migration-on-read, full domain writes, shallow partial domain updates, and timestamp conversion boundaries with one reusable Task model.
 - Unit tests cover migration dispatch, invalid schemaVersion failures, and timestamp conversion helpers.
 - `pnpm test` passes.
 - `pnpm build` passes.

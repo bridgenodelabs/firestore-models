@@ -271,10 +271,12 @@ const taskModel = defineModel<Task, TaskDocumentV1>({
     priority: task.priority,
   }),
   toPartialPersisted: (patch, toTimestamp) => ({
-    title: patch.title,
-    done: patch.done,
-    dueAt: patch.dueAt ? toTimestamp?.(patch.dueAt) : undefined,
-    priority: patch.priority,
+    ...(patch.title !== undefined ? { title: patch.title } : {}),
+    ...(patch.done !== undefined ? { done: patch.done } : {}),
+    ...(patch.dueAt !== undefined
+      ? { dueAt: patch.dueAt ? toTimestamp?.(patch.dueAt) : patch.dueAt }
+      : {}),
+    ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
   }),
   fromPersisted: (doc) => ({
     title: doc.title,
@@ -286,6 +288,9 @@ const taskModel = defineModel<Task, TaskDocumentV1>({
 ```
 
 Without `toPartialPersisted`, partial domain updates throw a descriptive error and callers should use a raw persisted update helper instead.
+
+Keep `toPartialPersisted` shallow. It should only convert fields that are present
+in the patch, and it should not imply deep patch or dotted-path semantics.
 
 ## 6) Optional React hooks subpath
 
@@ -399,12 +404,12 @@ Migration note for existing React apps:
 
 The sample work is now centered on a shared Task model package:
 
-- `samples/shared/`: reusable Task model, persisted shapes, migration, and timestamp helpers.
-- `samples/web-app/`: runnable React + Vite example using the Firebase Web SDK and `@bridgenodelabs/firestore-models/react` hooks.
-- `samples/project-task-sample/`: CLI runner that demonstrates writing a `Project` document and its `tasks` subcollection inside a single transaction while reusing the shared `taskModel`.
+- `samples/shared/`: reusable Task model, persisted shapes, migration, full-write conversion, and shallow partial-update conversion.
+- `samples/web-app/`: runnable React + Vite example using the Firebase Web SDK and `@bridgenodelabs/firestore-models/react` hooks, with `create(...)` as the preferred full-write path and `updateById(...)` as the preferred partial-update path.
+- `samples/project-task-sample/`: CLI runner that demonstrates model-owned full-write conversion for a `Project` document and its `tasks` subcollection inside a single transaction while reusing the shared `taskModel`.
 - `samples/firebase-function/`: planned runnable admin-side example for Cloud Functions and the emulator.
 
-Start with `samples/shared`, then run `samples/web-app` to see create/read/update/delete flows against the Firestore emulator.
+Start with `samples/shared`, then run `samples/web-app` to see domain-driven create/read/update/delete flows against the Firestore emulator. Use raw persisted helpers only as explicit escape hatches.
 
 ## 8) Remaining work
 
