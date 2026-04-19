@@ -56,7 +56,7 @@ export function useTaskList(): UseTaskListResult {
 
   const {
     create: createDocument,
-    updatePersistedById,
+    updateById,
     deleteById,
     pending,
     error: mutationError,
@@ -89,11 +89,11 @@ export function useTaskList(): UseTaskListResult {
   const toggle = useCallback(
     async (task: TaskWithId) => {
       clearError();
-      await updatePersistedById(task.id, {
+      await updateById(task.id, {
         done: !task.done,
       });
     },
-    [clearError, updatePersistedById],
+    [clearError, updateById],
   );
 
   const remove = useCallback(

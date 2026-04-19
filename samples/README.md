@@ -1,6 +1,6 @@
 # firestore-models Samples
 
-Sample applications demonstrating `@bridgenodelabs/firestore-models` patterns including migration-on-read, domain/persisted separation, and adapter-based Firestore integration.
+Sample applications demonstrating `@bridgenodelabs/firestore-models` patterns including migration-on-read, domain-driven writes, domain/persisted separation, and adapter-based Firestore integration.
 
 ## Quick Start
 
@@ -48,6 +48,7 @@ A complete, runnable React application demonstrating Firestore integration using
 - Create, read (with live updates), toggle done, and delete tasks
 - Migration-on-read: transparent upgrade of `schemaVersion: 0` documents to current domain shape
 - Domain/persisted boundary isolation via `@bridgenodelabs/firestore-models/react` hooks
+- Preferred write lanes in practice: full writes through `create(...)`, partial updates through `updateById(...)`
 - Emulator-first development flow
 
 **Getting started:**
@@ -71,9 +72,10 @@ A focused CLI sample that layers a `Project` model on top of the shared `Task` m
 
 **Features:**
 
+- Converting `Project` and `Task` domain objects through their models before persistence
 - Persisting `projects/{projectId}` and every `projects/{projectId}/tasks/{taskId}` document together so any failure rolls back the entire batch
 - Rehydrating the project and nested task array from Firestore via `readDocumentDomain`, including schema/migration logic
-- Illustrating how to reuse `taskModel` for subcollection writes while keeping the project document separate
+- Illustrating how to reuse `taskModel` for subcollection writes while keeping the transaction boundary honest
 
 **Getting started:**
 
@@ -171,15 +173,15 @@ pnpm verify:live
 
 This runs a TypeScript script that tests:
 
-- Creating a current-version (schemaVersion 1) task
+- Creating a current-version (schemaVersion 1) task through model conversion
 - Reading tasks with live updates through the React hook path
 - Seeding and reading a legacy (schemaVersion 0) document
 - Transparent migration to the current domain shape
-- Toggling and deleting tasks
+- Applying a partial domain update and deleting tasks
 
 ### Test Against Emulator
 
-All samples connect automatically to the emulator in development mode. The web sample reads and writes through `@bridgenodelabs/firestore-models/react`, which still uses `readDocumentDomain` and model migration logic under the hood.
+All samples connect automatically to the emulator in development mode. The web sample reads and writes through `@bridgenodelabs/firestore-models/react`, using model-owned conversion for full writes and partial domain updates while still running `readDocumentDomain` migration logic under the hood.
 
 ## Documentation
 

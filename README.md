@@ -339,7 +339,7 @@ const {
   model: taskModel,
 });
 
-const { create, updatePersistedById, deleteById } = useFirestoreMutations({
+const { create, updateById, deleteById } = useFirestoreMutations({
   collection: tasksCollection,
   model: taskModel,
 });
@@ -351,9 +351,15 @@ await create({
   priority: "high",
 });
 
-await updatePersistedById("task-1", { done: true });
+await updateById("task-1", { done: true });
 await deleteById("task-1");
 ```
+
+Preferred write lanes:
+
+- full domain writes: `create(...)`, `setDocumentDomain(...)`, or `model.toPersisted(...)`
+- partial domain updates: `updateById(...)` or `updateDocumentDomain(...)` with `toPartialPersisted(...)`
+- raw persisted escape hatches: `setPersistedById(...)`, `updatePersistedById(...)`, or persisted adapter helpers when you intentionally want Firestore-shaped data
 
 ## Main exports
 
@@ -474,8 +480,8 @@ See `docs/user-guide.md` for the longer usage guide and `docs/firestore-object-t
 
 Sample projects:
 
-- `samples/shared`: shared Task model with migration and validation
-- `samples/web-app`: runnable React + Vite Firebase Emulator sample using @bridgenodelabs/firestore-models/react hooks
-- `samples/project-task-sample`: CLI runner demonstrating transactional writes to a nested `projects/{projectId}/tasks` subcollection
+- `samples/shared`: shared Task model with migration, full-write conversion, and partial-update conversion
+- `samples/web-app`: runnable React + Vite Firebase Emulator sample using `create(...)` for full domain writes and `updateById(...)` for partial domain updates
+- `samples/project-task-sample`: CLI runner demonstrating model-owned conversion plus transactional writes to a nested `projects/{projectId}/tasks` subcollection
 
 Documentation note: several files under `docs/` are historical planning or design-capture artifacts rather than current user guides. Keep `README.md`, `docs/user-guide.md`, and the sample READMEs as the primary documentation surface.

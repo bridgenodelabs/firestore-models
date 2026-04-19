@@ -9,12 +9,18 @@ import {
   connectFirestoreEmulator,
   deleteDoc,
   doc,
+  type DocumentData,
   getDoc,
   getFirestore,
   setDoc,
   updateDoc,
+  type DocumentReference,
 } from "firebase/firestore";
-import { readDocumentDomain } from "@bridgenodelabs/firestore-models/adapters/firebase-client";
+import {
+  type BrowserDocumentWriter,
+  readDocumentDomain,
+  updateDocumentDomain,
+} from "@bridgenodelabs/firestore-models/adapters/firebase-client";
 
 import {
   taskModel,
@@ -75,6 +81,24 @@ function logStep(message: string): void {
   console.log(`• ${message}`);
 }
 
+function toTaskWriter(
+  ref: DocumentReference<DocumentData>,
+): BrowserDocumentWriter<TaskPersistedV1> {
+  return {
+    async set(data, options?: { merge?: boolean }) {
+      if (options === undefined) {
+        await setDoc(ref, data);
+        return;
+      }
+
+      await setDoc(ref, data, options);
+    },
+    async update(data) {
+      await updateDoc(ref, data);
+    },
+  };
+}
+
 async function main(): Promise<void> {
   const envFile = resolve(process.cwd(), ".env.local");
   const env = loadDotEnv(envFile);
@@ -107,7 +131,7 @@ async function main(): Promise<void> {
   );
 
   try {
-    logStep("Creating a current-version task document");
+    logStep("Creating a current-version task through model-owned conversion");
     const domainTask: Task = {
       title: `${runId}-current`,
       done: false,
@@ -190,8 +214,13 @@ async function main(): Promise<void> {
       "Expected migrated legacy dueAt to hydrate to Date",
     );
 
-    logStep("Toggling the current task done state");
-    await updateDoc(createdRef, { done: true });
+    logStep("Updating the current task through a partial domain patch");
+    await updateDocumentDomain(
+      toTaskWriter(createdRef),
+      { done: true },
+      taskModel,
+      { toTimestamp: Timestamp.fromDate },
+    );
     const toggledSnapshot = await getDoc(createdRef);
     assert(toggledSnapshot.exists(), "Expected toggled task to exist");
     const toggledTask = readDocumentDomain(toggledSnapshot, taskModel);

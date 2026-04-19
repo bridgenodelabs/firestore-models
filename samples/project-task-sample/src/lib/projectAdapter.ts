@@ -36,6 +36,10 @@ function toPersistedTask(task: Task): TaskPersistedV1 {
   return stripUndefined(persisted);
 }
 
+function toPersistedProject(project: Project) {
+  return stripUndefined(projectModel.toPersisted(project, Timestamp.fromDate));
+}
+
 function stripUndefined<T extends object>(value: T): T {
   const record = value as Record<string, unknown>;
   return Object.fromEntries(
@@ -53,10 +57,7 @@ export async function persistProjectWithTasks(
   const tasksCollection = tasksCollectionForProject(projectId);
 
   await runTransaction(store, async (transaction) => {
-    transaction.set(
-      projectRef,
-      stripUndefined(projectModel.toPersisted(project, Timestamp.fromDate)),
-    );
+    transaction.set(projectRef, toPersistedProject(project));
 
     for (const task of tasks) {
       transaction.set(doc(tasksCollection, task.id), toPersistedTask(task));

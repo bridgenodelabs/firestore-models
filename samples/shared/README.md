@@ -9,7 +9,8 @@ It demonstrates:
 - a pure `v0 -> v1` migration
 - `Date` in the domain layer
 - `TimestampLike` only at the persisted boundary
-- write-side timestamp factories via `toPersisted(..., toTimestamp)`
+- full domain writes via `toPersisted(..., toTimestamp)`
+- partial domain updates via `toPartialPersisted(..., toTimestamp)`
 
 ## Files
 
@@ -31,6 +32,12 @@ interface Task {
 
 - `TaskPersistedV0`: legacy shape using `completed` and `dueDate`
 - `TaskPersistedV1`: current shape using `done`, `dueAt`, and `priority`
+
+## Write Model
+
+- Use `taskModel.toPersisted(task, toTimestamp)` for full domain writes.
+- Use `taskModel.toPartialPersisted(patch, toTimestamp)` for shallow partial domain updates.
+- Keep `TimestampLike` values at the persisted boundary. The domain model stays on `Date`.
 
 ## Migration
 

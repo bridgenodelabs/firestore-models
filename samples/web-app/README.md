@@ -1,12 +1,14 @@
 # Web Task Sample
 
-Runnable React + Vite sample that demonstrates `@bridgenodelabs/firestore-models` migration-on-read and domain/persisted separation with the Firebase Web SDK.
+Runnable React + Vite sample that demonstrates `@bridgenodelabs/firestore-models` migration-on-read, domain-driven writes, and domain/persisted separation with the Firebase Web SDK.
 
 The UI only works with `Task` domain objects from the shared sample model. Firestore read/write wiring is handled through the optional `@bridgenodelabs/firestore-models/react` hooks subpath.
 
 ## What this demonstrates
 
 - Create task writes with `schemaVersion: 1` persisted shape
+- Full domain writes through `create(...)`
+- Partial domain updates through `updateById(...)` and `Task.toPartialPersisted(...)`
 - Live list reads using `useFirestoreCollectionDomain` from `@bridgenodelabs/firestore-models/react`
 - Legacy `schemaVersion: 0` docs transparently migrate to current `Task` domain objects
 - Toggle done and delete via `useFirestoreMutations`
@@ -80,7 +82,7 @@ firebase emulators:start --only firestore
 pnpm --dir samples/web-app dev
 ```
 
-3. Open the Vite URL and verify create/read/update/delete operations.
+3. Open the Vite URL and verify domain-driven create/read/update/delete operations.
 
 4. Run the scripted emulator verification if you want a repeatable CRUD + migration check:
 
@@ -109,14 +111,14 @@ When the app loads, the task appears using the current domain fields (`done`, `d
 
 ## Verify expected flows
 
-1. Create a task and inspect Firestore data: it should store `schemaVersion: 1` plus `done`, `dueAt`, and `priority`.
+1. Create a task and inspect Firestore data: the app writes through `create(...)`, and Firestore should store `schemaVersion: 1` plus `done`, `dueAt`, and `priority`.
 2. Add a `schemaVersion: 0` document and refresh: it should render like a normal task.
-3. Toggle done state: the document updates through the shared mutation hook.
+3. Toggle done state: the app updates through `updateById(...)`, which converts the partial domain patch through `taskModel.toPartialPersisted(...)`.
 4. Delete a task: the document is removed and list updates immediately.
 
 ## Scripted live verification
 
-`pnpm verify:live` connects to the Firestore emulator, creates a current-version task, validates the raw persisted document, reads it back through `readDocumentDomain`, seeds a legacy `schemaVersion: 0` task, confirms migration to the current domain shape, toggles the current task, and then deletes both verification documents.
+`pnpm verify:live` connects to the Firestore emulator, creates a current-version task through model-owned conversion, validates the raw persisted document, reads it back through `readDocumentDomain`, seeds a legacy `schemaVersion: 0` task, confirms migration to the current domain shape, applies a partial domain update through `updateDocumentDomain(...)`, and then deletes both verification documents.
 
 The script reads `samples/web-app/.env.local` when present, but also falls back to the demo values shown above so it can run against a local emulator with minimal setup.
 
@@ -125,6 +127,6 @@ The script reads `samples/web-app/.env.local` when present, but also falls back 
 - `.env.local.sample` env template committed to the repo
 - `src/lib/firestore.ts` Firebase app setup + emulator connection
 - `src/models/task.ts` shared model re-export (no duplicated migration logic)
-- `src/hooks/useTaskList.ts` composition layer that uses `@bridgenodelabs/firestore-models/react` hooks
+- `src/hooks/useTaskList.ts` composition layer that uses `create(...)` for full domain writes and `updateById(...)` for partial domain updates
 - `src/components/TaskForm.tsx` create flow
 - `src/components/TaskList.tsx` list/toggle/delete flows

@@ -120,6 +120,24 @@ export const taskModel = defineModel<Task, TaskPersistedV1>({
       priority: task.priority,
     };
   },
+  toPartialPersisted: (patch, toTimestamp) => {
+    if (patch.dueAt !== undefined && patch.dueAt && !toTimestamp) {
+      throw new Error("toTimestamp is required when persisting Task.dueAt");
+    }
+
+    return {
+      ...(patch.title !== undefined ? { title: patch.title } : {}),
+      ...(patch.done !== undefined ? { done: patch.done } : {}),
+      ...(patch.dueAt !== undefined
+        ? {
+            dueAt: patch.dueAt
+              ? timestampFromDate(patch.dueAt, toTimestamp!)
+              : patch.dueAt,
+          }
+        : {}),
+      ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
+    };
+  },
   fromPersisted: (doc) => ({
     title: doc.title,
     done: doc.done,
